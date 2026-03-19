@@ -1,0 +1,59 @@
+import type { Personalverwaltung } from '@/types/app';
+import {
+  Dialog, DialogContent, DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Pencil } from 'lucide-react';
+
+interface PersonalverwaltungViewDialogProps {
+  open: boolean;
+  onClose: () => void;
+  record: Personalverwaltung | null;
+  onEdit: (record: Personalverwaltung) => void;
+}
+
+export function PersonalverwaltungViewDialog({ open, onClose, record, onEdit }: PersonalverwaltungViewDialogProps) {
+  if (!record) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Personalverwaltung anzeigen</DialogTitle>
+        </DialogHeader>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => { onClose(); onEdit(record); }}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Bearbeiten
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Vorname</Label>
+            <p className="text-sm">{record.fields.vorname ?? '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Telefonnummer</Label>
+            <p className="text-sm">{record.fields.telefon ?? '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">E-Mail-Adresse</Label>
+            <p className="text-sm">{record.fields.email ?? '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Qualifikationen</Label>
+            <p className="text-sm">{Array.isArray(record.fields.qualifikation) ? record.fields.qualifikation.map((v: any) => v?.label ?? v).join(', ') : '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Nachname</Label>
+            <p className="text-sm">{record.fields.nachname ?? '—'}</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
