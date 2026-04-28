@@ -1,5 +1,7 @@
 const AI_ENDPOINT = "https://my.living-apps.de/litellm/v1/chat/completions";
 const AI_MODEL = "default";
+const AI_MODEL_IMG = "default-img";
+const AI_MODEL_DOCS = "default-docs";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -7,6 +9,7 @@ export type ChatMessage = {
 };
 
 type CompletionOptions = {
+  model?: string;
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
@@ -18,10 +21,11 @@ export async function chatCompletion(
   messages: ChatMessage[],
   options: CompletionOptions = {}
 ): Promise<string> {
+  const { model = AI_MODEL, ...rest } = options;
   const res = await fetch(AI_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, messages, ...options }),
+    body: JSON.stringify({ model, messages, ...rest }),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -383,7 +387,7 @@ export async function analyzeImage(imageDataUri: string, prompt: string): Promis
         { type: "image_url", image_url: { url: imageDataUri } },
       ],
     },
-  ]);
+  ], { model: AI_MODEL_IMG });
 }
 
 export async function analyzeDocument(fileDataUri: string, prompt: string): Promise<string> {
@@ -395,24 +399,42 @@ export async function analyzeDocument(fileDataUri: string, prompt: string): Prom
         { type: "file", file: { file_data: fileDataUri } },
       ],
     },
-  ]);
+  ], { model: AI_MODEL_DOCS });
 }
 
-export async function extractFromPhoto<T = Record<string, unknown>>(
-  dataUri: string,
+export async function extractFromInput<T = Record<string, unknown>>(
   schemaDescription: string,
-  photoContext?: string,
-  intent?: string
+  options: {
+    dataUri?: string;
+    userText?: string;
+    photoContext?: string;
+    intent?: string;
+  } = {}
 ): Promise<T> {
-  const isImage = dataUri.startsWith("data:image/");
-  const fileContent = isImage
-    ? { type: "image_url" as const, image_url: { url: dataUri } }
-    : { type: "file" as const, file: { file_data: dataUri } };
-  const systemParts = [
-    "Extract structured data from the provided " + (isImage ? "image" : "document") + ".",
-    "Respond ONLY with valid JSON matching the schema.",
-    "Use null for any field that cannot be determined.",
-  ];
+  const { dataUri, userText, photoContext, intent } = options;
+  const hasMedia = !!dataUri;
+  const hasText = !!userText?.trim();
+  if (!hasMedia && !hasText) {
+    throw new Error("Either dataUri or userText must be provided");
+  }
+  const isImage = hasMedia && dataUri!.startsWith("data:image/");
+  const mediaLabel = isImage ? "image" : "document";
+  const systemParts: string[] = [];
+  if (hasMedia && hasText) {
+    systemParts.push(
+      "Extract structured data from the provided " + mediaLabel + " and the user's text input.",
+      "The user's text may contain data to extract, additional context about the " + mediaLabel + ", specific instructions, or any combination. Use ALL provided information to fill the schema fields."
+    );
+  } else if (hasMedia) {
+    systemParts.push("Extract structured data from the provided " + mediaLabel + ".");
+  } else {
+    systemParts.push(
+      "Extract structured data from the user's text input.",
+      "The text may contain raw data, structured information, notes, emails, descriptions, or instructions. Extract all relevant information that matches the schema fields."
+    );
+  }
+  systemParts.push("Respond ONLY with valid JSON matching the schema.");
+  systemParts.push("Use null for any field that cannot be determined.");
   if (intent) {
     systemParts.push(`<user-intent>${intent}</user-intent>`);
   }
@@ -420,17 +442,33 @@ export async function extractFromPhoto<T = Record<string, unknown>>(
     systemParts.push(photoContext);
   }
   systemParts.push(`Schema:\n${schemaDescription}`);
+  const userContent: Array<{ type: string; [key: string]: unknown }> = [];
+  const textParts: string[] = [];
+  if (hasMedia) {
+    textParts.push("Extract the data from this " + mediaLabel + ".");
+  }
+  if (hasText) {
+    textParts.push(`<user-input>\n${userText!.trim()}\n</user-input>`);
+  }
+  userContent.push({ type: "text", text: textParts.join("\n") });
+  if (hasMedia) {
+    userContent.push(
+      isImage
+        ? { type: "image_url", image_url: { url: dataUri! } }
+        : { type: "file", file: { file_data: dataUri! } }
+    );
+  }
+  const model = hasMedia ? (isImage ? AI_MODEL_IMG : AI_MODEL_DOCS) : AI_MODEL;
   return safeJsonCompletion([
-    {
-      role: "system",
-      content: systemParts.join("\n"),
-    },
-    {
-      role: "user",
-      content: [
-        { type: "text", text: "Extract the data from this " + (isImage ? "image" : "document") + "." },
-        fileContent,
-      ],
-    },
-  ]);
+    { role: "system", content: systemParts.join("\n") },
+    { role: "user", content: userContent },
+  ], { model });
 }
+
+/** @deprecated Use extractFromInput instead */
+export const extractFromPhoto = <T = Record<string, unknown>>(
+  dataUri: string,
+  schemaDescription: string,
+  photoContext?: string,
+  intent?: string
+) => extractFromInput<T>(schemaDescription, { dataUri, photoContext, intent });

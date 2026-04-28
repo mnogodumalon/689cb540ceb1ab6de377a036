@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "forms": [
+    {
+      "entity": "personalverwaltung",
+      "app_id": "689cb529a2bd8ef1df5d53da",
+      "path": "/rest/apps/689cb529a2bd8ef1df5d53da/records",
+      "allowed_fields": [
+        "vorname",
+        "telefon",
+        "email",
+        "qualifikation",
+        "nachname"
+      ],
+      "pow": true,
+      "pow_difficulty": 50000,
+      "title": "Personalverwaltung — Formular"
+    },
+    {
+      "entity": "bereitschaftsdienst",
+      "app_id": "689cb52e3211bd59ce8f6461",
+      "path": "/rest/apps/689cb52e3211bd59ce8f6461/records",
+      "allowed_fields": [
+        "standort",
+        "dienstbeginn",
+        "dienstende"
+      ],
+      "pow": true,
+      "pow_difficulty": 50000,
+      "title": "Bereitschaftsdienst — Formular"
+    },
+    {
+      "entity": "einsatzprotokoll",
+      "app_id": "689cb52fac1e6b256fa808a2",
+      "path": "/rest/apps/689cb52fac1e6b256fa808a2/records",
+      "allowed_fields": [
+        "einsatzzeitpunkt",
+        "einsatzort",
+        "beschreibung"
+      ],
+      "pow": true,
+      "pow_difficulty": 50000,
+      "title": "Einsatzprotokoll — Formular"
+    }
+  ]
+}
